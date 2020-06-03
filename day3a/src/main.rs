@@ -2,11 +2,24 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::str::FromStr;
+use std::cmp::Ordering;
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 struct Point {
     x: i32,
     y: i32,
+}
+
+impl PartialOrd for Point {
+    fn partial_cmp(&self, other: &Point) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Point {
+    fn cmp(&self, other: &Point) -> Ordering {
+        ((self.x.abs() + self.y.abs())).cmp(&(other.x.abs() + other.y.abs()))
+    }
 }
 
 #[derive(Debug)]
@@ -89,7 +102,6 @@ fn str_to_direction(s: &str) -> Direction {
             Direction::Left(x)
         }
         _ => {
-            println!("{}", dir);
             panic!("Str_to_Direction")
         }
     };
@@ -111,12 +123,32 @@ fn main() {
                 .split(',')
                 .map(|l| str_to_direction(l.trim()))
                 .collect();
-
             let wired = wire_route(directions);
             wires.push(wired);
+            line.clear();
         } else {
             println!("Nothing to do");
             break;
         }
     }
+
+    let mut result: Vec<Point> = Vec::new();
+
+    let wire_a = wires.get(0).unwrap();
+    let wire_b = wires.get(1).unwrap();
+    
+    for point_a in wire_a {
+        for point_b in wire_b {
+            if point_b == point_a {
+                result.push(*point_a);
+            }
+        }
+    }
+
+    result.sort();
+    let x = result.get(0).unwrap().x;
+    let y = result.get(0).unwrap().y;
+    let manhattan_dist = x.abs() + y.abs();
+    println!("x: {}, y: {}, Manhattan distance: {}", x ,y ,manhattan_dist);
+
 }
