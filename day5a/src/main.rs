@@ -9,9 +9,7 @@ going back and forward....
 use std::env;
 use std::fs;
 
-const TARGET: u32 = 19690720;
-
-fn op_add(pos: usize, vec: &mut Vec<u32>) {
+fn op_add(pos: usize, vec: &mut Vec<i32>) {
     let lhs = vec[pos + 1];
     let rhs = vec[pos + 2];
     let res = vec[pos + 3];
@@ -19,7 +17,7 @@ fn op_add(pos: usize, vec: &mut Vec<u32>) {
     vec[res as usize] = vec[lhs as usize] + vec[rhs as usize];
 }
 
-fn op_multiply(pos: usize, vec: &mut Vec<u32>) {
+fn op_multiply(pos: usize, vec: &mut Vec<i32>) {
     let lhs = vec[pos + 1];
     let rhs = vec[pos + 2];
     let res = vec[pos + 3];
@@ -27,53 +25,67 @@ fn op_multiply(pos: usize, vec: &mut Vec<u32>) {
     vec[res as usize] = vec[lhs as usize] * vec[rhs as usize];
 }
 
-fn process_ops(vec: &mut Vec<u32>) {
+fn op_store(pos: usize, input: i32, vec: &mut Vec<i32>) {
+    let index = vec[pos + 1];
+    vec[index as usize] = input;
+}
+
+fn op_load(pos: usize, vec: &mut Vec<i32>) -> i32 {
+    let index = vec[pos + 1];
+    return vec[index as usize];
+}
+
+fn process_ops(input: i32, vec: &mut Vec<i32>) -> i32 {
     let mut x: usize = 0;
+    let mut output = 0;
     while x < vec.len() {
         match vec[x] {
             1 => op_add(x, vec),
             2 => op_multiply(x, vec),
-            3 => unimplemented!(),
-            4 => unimplemented!(),
+            3 => op_store(x, input, vec),
+            4 => output = op_load(x, vec),
             99 => break,
             _ => break,
         }
+        // Instruction pointer adjustment
         x += 4;
     }
+    output
+}
+
+fn parse_file_to_vec(file_path: String) -> Vec<i32> {
+    let content = fs::read_to_string(file_path).unwrap();
+    let tokens: Vec<&str> = content.split(",").collect();
+
+    let v: Vec<i32> = tokens
+        .into_iter()
+        .map(|e| e.trim().parse::<i32>().unwrap())
+        .collect();
+
+    v
 }
 
 fn main() -> Result<(), ()> {
     let vec_str: Vec<String> = env::args().collect();
 
-    let file_path = match vec_str.len() {
-        0..=1 => Err(()),
-        2 => Ok(vec_str.get(1).unwrap()),
-        _ => Err(()),
+    let (file_path, input) = match vec_str.len() {
+        0..=2 => {
+            panic!("No args");
+        }
+        3 => (
+            vec_str.get(1).unwrap(),
+            (*vec_str.get(2).unwrap()).trim().parse::<i32>().unwrap(),
+        ),
+        _ => {
+            panic!("Too many args");
+        }
     };
 
-    let content = fs::read_to_string(file_path.unwrap()).unwrap();
+    let mut vec = parse_file_to_vec(file_path.to_string());
 
-    let tokens: Vec<&str> = content.split(",").collect();
-    let mut vec_num: Vec<u32> = Vec::new();
+    let output = process_ops(input, &mut vec);
 
-    for elem in tokens {
-        vec_num.push(elem.trim().parse::<u32>().unwrap());
-    }
+    println!("{}", output);
 
-    let mut vec = vec_num.clone();
-
-    /* New code here */
-    for i in 0..100 {
-        for j in 0..100 {
-            // reset memory here
-            vec[1] = i;
-            vec[2] = j;
-            process_ops(&mut vec);
-            if vec[0] == TARGET {
-                println!("{}", 100*i+j);
-            }
-            vec = vec_num.clone();
-        }
-    }
     Ok(())
 }
