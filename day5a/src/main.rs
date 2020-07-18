@@ -26,103 +26,122 @@ use std::env;
 use std::fs;
 
 enum Op {
-    Add {
-        lhs: OpMode,
-        rhs: OpMode,
-        out: OpMode,
-    },
-    Multiply {
-        lhs: OpMode,
-        rhs: OpMode,
-        out: OpMode,
-    },
-    Store {
-        input: OpMode,
-    },
-    Load {
-        input: OpMode,
-    },
+    Add,
+    Multiply,
+    Store,
+    Load,
+    Halt,
 }
 
-enum OpMode {
+enum ArgMode {
     Position,
     Immediate,
 }
 
 struct Command {
     op: Op,
-    args: Vec<i32>,
+    args: Option<Vec<ArgMode>>,
 }
 
-fn op_add(pos: usize, vec: &mut Vec<i32>) {
-    let lhs = vec[pos + 1];
-    let rhs = vec[pos + 2];
-    let res = vec[pos + 3];
+fn op_add(pos: usize, args: Vec<ArgMode>, vec: &mut Vec<i32>) {
+    let arg: Vec<i32> = args.into_iter().map(
+        |x| {
+            let f = match x {
+                ArgMode::Position => vec[vec[pos+1] as usize],
+                ArgMode::Immediate => vec[pos+1]
+            };
+            f
+        }).collect::<Vec<i32>>();
 
-    vec[res as usize] = vec[lhs as usize] + vec[rhs as usize];
+    vec[arg[2] as usize] = arg[0] + arg[1];
 }
 
-fn op_multiply(pos: usize, vec: &mut Vec<i32>) {
-    let lhs = vec[pos + 1];
-    let rhs = vec[pos + 2];
-    let res = vec[pos + 3];
+fn op_multiply(pos: usize, args: Vec<ArgMode>, vec: &mut Vec<i32>) {
+    let arg: Vec<i32> = args.into_iter().map(
+        |x| {
+            let f = match x {
+                ArgMode::Position => vec[vec[pos+1] as usize],
+                ArgMode::Immediate => vec[pos+1]
+            };
+            f
+        }).collect::<Vec<i32>>();
 
-    vec[res as usize] = vec[lhs as usize] * vec[rhs as usize];
+    vec[arg[2] as usize] = arg[0] * arg[1];
 }
 
-fn op_store(pos: usize, input: i32, vec: &mut Vec<i32>) {
-    let index = vec[pos + 1];
-    vec[index as usize] = input;
+fn op_store(pos: usize, input: i32, args: Vec<ArgMode>, vec: &mut Vec<i32>) {
+    match args[0] {
+        ArgMode::Position => vec[vec[vec[pos+1] as usize] as usize] = input,
+        ArgMode::Immediate => vec[vec[pos+1] as usize] = input
+    }
 }
 
-fn op_load(pos: usize, vec: &mut Vec<i32>) -> i32 {
-    let index = vec[pos + 1];
-    return vec[index as usize];
+fn op_load(pos: usize, args: Vec<ArgMode>, vec: &mut Vec<i32>) -> i32 {
+    match args[0] {
+        ArgMode::Position  => vec[vec[pos+1] as usize],
+        ArgMode::Immediate => vec[pos+1]
+    }
 }
 
-fn process(input: i32, vec: &mut Vec<i32>) -> i32 {
-    let mut x: usize = 0;
+fn process(input: i32, ops: &mut Vec<i32>) -> i32 {
     let mut output = 0;
-    while x < vec.len() {
-        match vec[x] {
-            1 => op_add(x, vec),
-            2 => op_multiply(x, vec),
-            3 => op_store(x, input, vec),
-            4 => output = op_load(x, vec),
-            99 => break,
-            _ => break,
-        }
-        // Instruction pointer adjustment
-        x += 4;
+    for op_cntr in 0..ops.len() {
+        let instruction = decode(ops[op_cntr]);
     }
     output
 }
 
-
-fn execute_opcode(op: Command) {
-
+fn decode_argmodes(m: i32, len: i32) -> Vec<ArgMode> {
+    let mut argmodes: Vec<ArgMode> = Vec::new();
+    for x in 0..len {
+        let r = (m >> (x * 8)) & 0xFF;
+        match r {
+            1 => argmodes.push(ArgMode::Immediate),
+            _ => argmodes.push(ArgMode::Position),
+        }
+    }
+    argmodes
 }
 
-
-fn decode_opcode(opcode: i32) -> Command {
-    let mut cmd: Command = match opcode % 100 {
-        0 => {
-            unimplemented!();
-        }
+fn decode(opcode: i32) -> Command {
+    let op: Command = match opcode & 0xFF {
         1 => {
-            unimplemented!();
+            let arg_modes = decode_argmodes(opcode >> 16, 3);
+            Command {
+                op: Op::Add,
+                args: Some(arg_modes),
+            }
         }
         2 => {
-            unimplemented!();
+            let arg_modes = decode_argmodes(opcode >> 16, 3);
+            Command {
+                op: Op::Multiply,
+                args: Some(arg_modes),
+            }
         }
-        99 => {
-            unimplemented!();
+        3 => {
+            let arg_modes = decode_argmodes(opcode >> 16, 1);
+            Command {
+                op: Op::Store,
+                args: Some(arg_modes),
+            }
         }
+        4 => {
+            let arg_modes = decode_argmodes(opcode >> 16, 1);
+            Command {
+                op: Op::Load,
+                args: Some(arg_modes),
+            }
+        }
+        99 => Command {
+            op: Op::Halt,
+            args: None,
+        },
         _ => {
-            unimplemented!();
+            panic!("Unexpected instruction");
         }
     };
-    return cmd;
+    op
 }
 
 fn parse_file_to_vec(file_path: String) -> Vec<i32> {
