@@ -33,6 +33,7 @@ enum Op {
     Halt,
 }
 
+#[derive(Debug)]
 enum ArgMode {
     Position,
     Immediate,
@@ -44,90 +45,108 @@ struct Command {
 }
 
 fn op_add(pos: usize, args: Vec<ArgMode>, vec: &mut Vec<i32>) {
-    let arg: Vec<i32> = args.into_iter().map(
-        |x| {
-            let f = match x {
-                ArgMode::Position => vec[vec[pos+1] as usize],
-                ArgMode::Immediate => vec[pos+1]
-            };
-            f
-        }).collect::<Vec<i32>>();
+    let lhs = match args[0] {
+        ArgMode::Position => vec[vec[pos + 1 as usize] as usize],
+        ArgMode::Immediate => vec[pos + 1],
+    };
 
-    vec[arg[2] as usize] = arg[0] + arg[1];
+    let rhs = match args[1] {
+        ArgMode::Position => vec[vec[pos + 2 as usize] as usize],
+        ArgMode::Immediate => vec[pos + 2],
+    };
+
+    let res = lhs + rhs;
+
+    match args[2] {
+        ArgMode::Position => {
+            let idx = vec[pos + 3 as usize];
+            vec[idx as usize] = res;
+        }
+        ArgMode::Immediate => vec[pos + 3] = res,
+    };
 }
 
 fn op_multiply(pos: usize, args: Vec<ArgMode>, vec: &mut Vec<i32>) {
-    let arg: Vec<i32> = args.into_iter().map(
-        |x| {
-            let f = match x {
-                ArgMode::Position => vec[vec[pos+1] as usize],
-                ArgMode::Immediate => vec[pos+1]
-            };
-            f
-        }).collect::<Vec<i32>>();
+    let lhs = match args[0] {
+        ArgMode::Position => vec[vec[pos + 1 as usize] as usize],
+        ArgMode::Immediate => vec[pos + 1],
+    };
 
-    vec[arg[2] as usize] = arg[0] * arg[1];
+    let rhs = match args[1] {
+        ArgMode::Position => vec[vec[pos + 2 as usize] as usize],
+        ArgMode::Immediate => vec[pos + 2],
+    };
+
+    let res = lhs * rhs;
+
+    match args[2] {
+        ArgMode::Position => {
+            let idx = vec[pos + 3 as usize];
+            vec[idx as usize] = res;
+        }
+        ArgMode::Immediate => vec[pos + 3] = res,
+    };
 }
 
 fn op_store(pos: usize, input: i32, args: Vec<ArgMode>, vec: &mut Vec<i32>) {
     match args[0] {
-        ArgMode::Position => vec[vec[vec[pos+1] as usize] as usize] = input,
-        ArgMode::Immediate => vec[vec[pos+1] as usize] = input
+        ArgMode::Position => {
+            let index = vec[pos + 1] as usize;
+            vec[index as usize] = input;
+        }
+        ArgMode::Immediate => {
+            let index = pos + 1;
+            vec[index as usize] = input;
+        }
     }
 }
 
 fn op_load(pos: usize, args: Vec<ArgMode>, vec: &mut Vec<i32>) -> i32 {
     match args[0] {
-        ArgMode::Position  => vec[vec[pos+1] as usize],
-        ArgMode::Immediate => vec[pos+1]
+        ArgMode::Position => vec[vec[pos + 1] as usize],
+        ArgMode::Immediate => vec[pos + 1],
     }
 }
 
-fn process(input: i32, ops: &mut Vec<i32>) -> i32 {
-    let mut output = 0;
-    for op_cntr in 0..ops.len() {
-        let instruction = decode(ops[op_cntr]);
-    }
-    output
-}
-
-fn decode_argmodes(m: i32, len: i32) -> Vec<ArgMode> {
+fn decode_argmodes(opcode: i32, len: usize) -> Vec<ArgMode> {
     let mut argmodes: Vec<ArgMode> = Vec::new();
-    for x in 0..len {
-        let r = (m >> (x * 8)) & 0xFF;
-        match r {
+    let mut arg = opcode / 100;
+    for _ in 0..len {
+        match arg % 10 {
             1 => argmodes.push(ArgMode::Immediate),
-            _ => argmodes.push(ArgMode::Position),
+            0 => argmodes.push(ArgMode::Position),
+            _ => panic!("Unexpected stuff happened at argument mode deduction"),
         }
+        arg /= 10;
     }
     argmodes
 }
 
 fn decode(opcode: i32) -> Command {
-    let op: Command = match opcode & 0xFF {
+    let op: Command = match opcode % 100 {
         1 => {
-            let arg_modes = decode_argmodes(opcode >> 16, 3);
+            let arg_modes = decode_argmodes(opcode, 3);
             Command {
                 op: Op::Add,
                 args: Some(arg_modes),
             }
         }
         2 => {
-            let arg_modes = decode_argmodes(opcode >> 16, 3);
+            let arg_modes = decode_argmodes(opcode, 3);
             Command {
                 op: Op::Multiply,
                 args: Some(arg_modes),
             }
         }
         3 => {
-            let arg_modes = decode_argmodes(opcode >> 16, 1);
+            let arg_modes = decode_argmodes(opcode, 1);
             Command {
                 op: Op::Store,
                 args: Some(arg_modes),
             }
         }
         4 => {
-            let arg_modes = decode_argmodes(opcode >> 16, 1);
+            let arg_modes = decode_argmodes(opcode, 1);
             Command {
                 op: Op::Load,
                 args: Some(arg_modes),
@@ -137,11 +156,42 @@ fn decode(opcode: i32) -> Command {
             op: Op::Halt,
             args: None,
         },
-        _ => {
-            panic!("Unexpected instruction");
+        x => {
+            panic!("Unexpected instruction {:?}", x);
         }
     };
     op
+}
+
+fn process(input: i32, ops: &mut Vec<i32>) -> i32 {
+    let mut output = 0;
+    let mut i = 0;
+    while i < ops.len() {
+        let op = decode(ops[i]);
+        let arg_len = match op.args {
+            Some(x) => x.len(),
+            None => 0,
+        };
+        let argmodes = decode_argmodes(ops[i], arg_len);
+        match op.op {
+            Op::Add => {
+                op_add(i, argmodes, ops);
+            }
+            Op::Multiply => {
+                op_multiply(i, argmodes, ops);
+            }
+            Op::Store => {
+                op_store(i, input, argmodes, ops);
+            }
+            Op::Load => output = op_load(i, argmodes, ops),
+            Op::Halt => {
+                break;
+            }
+        }
+
+        i += arg_len + 1;
+    }
+    output
 }
 
 fn parse_file_to_vec(file_path: String) -> Vec<i32> {
@@ -161,7 +211,7 @@ fn main() -> Result<(), ()> {
 
     let (file_path, input) = match vec_str.len() {
         0..=2 => {
-            panic!("No args");
+            panic!("Not enough args");
         }
         3 => (
             vec_str.get(1).unwrap(),
