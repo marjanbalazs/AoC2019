@@ -30,15 +30,15 @@ fn calc_all_connections(
 
     match map.get(node) {
         Some(value) => {
-            if value.len() == 0 {
-                return acc
+            if value.is_empty() {
+                return acc;
             } else {
                 for elem in map.get(node).unwrap() {
                     acc += calc_all_connections(map, elem, start_weight + 1);
                 }
             }
         }
-        None => return acc
+        None => return acc,
     }
     acc
 }
