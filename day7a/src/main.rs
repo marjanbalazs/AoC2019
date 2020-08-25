@@ -43,9 +43,20 @@ impl ThreadPool {
     }
 }
 
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        for worker in &mut self.workers {
+            println!("Shutting down worker {}", worker.id);
+            if let Some(thread) = worker.handle.take() {
+                thread.join().unwrap();
+            }
+        }
+    }
+}
+
 struct Worker {
     id: usize,
-    handle: thread::JoinHandle<()>,
+    handle: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
@@ -59,7 +70,7 @@ impl Worker {
                 job();
             }
         });
-        Worker { id, handle }
+        Worker { id, handle: Some(handle) }
     }
 }
 
@@ -93,14 +104,14 @@ fn main() -> Result<(), ()> {
 
     let mem_original = parse_file_to_vec(file_path.to_string());
 
-    /*
-    machine.run();
-    println!("{}", machine.get_output());
-    */
-
+    let mut machine = intcode::Machine {
+        memory: &mut mem_original.clone(),
+        ip: 0,
+        input: input_val,
+        output: 0,
+    };
+   
     let threadpool = ThreadPool::new(4);
-
-
 
     threadpool.execute(move|| {
         let mut machine = intcode::Machine {
