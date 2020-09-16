@@ -25,7 +25,7 @@ struct Command {
 pub struct Machine<'a> {
     pub memory: &'a mut Vec<i32>,
     pub ip: usize,
-    pub input: i32,
+    pub input: Vec<i32>,
     pub output: i32,
 }
 
@@ -106,11 +106,11 @@ impl<'a> Machine<'a> {
         match args[0] {
             ArgMode::Position => {
                 let index = self.memory[self.ip + 1] as usize;
-                self.memory[index as usize] = self.input;
+                self.memory[index as usize] = self.input.pop().unwrap();
             }
             ArgMode::Immediate => {
                 let index = self.ip + 1;
-                self.memory[index as usize] = self.input;
+                self.memory[index as usize] = self.input.pop().unwrap();
             }
         }
         self.ip += args.len() + 1;
