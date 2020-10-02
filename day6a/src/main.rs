@@ -1,7 +1,3 @@
-// This is a directed acyclic graph and I want to find routers between indicies
-// I think it is possible to represent this graph the following way:
-// A vector is used to store the indicies data, and every entry stores a list of the neighbours.
-
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;

@@ -78,7 +78,6 @@ fn wire_route(dirs: Vec<Direction>) -> Vec<Point> {
             }
         }
     }
-
     wire
 }
 
@@ -136,6 +135,7 @@ fn main() {
 
     let wire_a = wires.get(0).unwrap();
     let wire_b = wires.get(1).unwrap();
+
     
     for point_a in wire_a {
         for point_b in wire_b {

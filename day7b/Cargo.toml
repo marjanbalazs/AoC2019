@@ -1,0 +1,17 @@
+[package]
+name = "day7b"
+version = "0.1.0"
+authors = ["marjanbalazs <marjanbalazs@outlook.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "intcode"
+path = "src/intcode.rs"
+
+[[bin]]
+name = "day7b"
+path = "src/main.rs"
+
+[dependencies]

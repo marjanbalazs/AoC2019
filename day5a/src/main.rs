@@ -1,27 +1,3 @@
-/* Seems to me this is a machine that manipulates numbers on a tape,
-going back and forward....
-*/
-
-/* Plan:
-1, Read the whole file into a vector
-2, Step around in the vector reading opcodes
-*/
-
-/*
-First, you'll need to add two new instructions:
-
-    Opcode 3 takes a single integer as input and saves it to the position given by its only parameter. For example, the instruction 3,50 would take an input value and store it at address 50.
-    Opcode 4 outputs the value of its only parameter. For example, the instruction 4,50 would output the value at address 50.
-
-Programs that use these instructions will come with documentation that explains what should be connected to the input and output. The program 3,0,4,0,99 outputs whatever it gets as input, then halts.
-
-Second, you'll need to add support for parameter modes:
-
-Each parameter of an instruction is handled based on its parameter mode. Right now, your ship computer already understands parameter mode 0, position mode, which causes the parameter to be interpreted as a position - if the parameter is 50, its value is the value stored at address 50 in memory. Until now, all parameters have been in position mode.
-
-Now, your ship computer will also need to handle parameters in mode 1, immediate mode. In immediate mode, a parameter is interpreted as a value - if the parameter is 50, its value is simply 50.
-*/
-
 use std::env;
 use std::fs;
 
@@ -56,6 +32,7 @@ fn op_add(pos: usize, args: Vec<ArgMode>, vec: &mut Vec<i32>) {
     };
 
     let res = lhs + rhs;
+
 
     match args[2] {
         ArgMode::Position => {
