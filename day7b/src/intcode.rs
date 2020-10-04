@@ -50,12 +50,11 @@ impl<'a> Machine<'a> {
                 Op::Less => self.op_less(args),
                 Op::Equal => self.op_equal(args),
                 Op::Halt => {
-                    println!("Halt");
                     break;
                 }
             }
         }
-        println!("I stopped");
+        drop(self);
     }
 
     fn op_add(&mut self, args: Vec<ArgMode>) {

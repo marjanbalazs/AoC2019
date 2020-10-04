@@ -57,7 +57,6 @@ fn main() -> Result<(), ()> {
     let results: Vec<i32> = phase_permutations
         .into_iter()
         .map(|phase_setting| {
-            let mut result = -1;
             let (tx_main, rx_a) = channel();
             let (tx_a, rx_b) = channel();
             let (tx_b, rx_c) = channel();
@@ -65,9 +64,6 @@ fn main() -> Result<(), ()> {
             let (tx_d, rx_e) = channel();
             let (tx_e, rx_main) = channel();
 
-            println!("{:?}", phase_setting);
-
-            //tx_main.send(0).unwrap();
             tx_main.send(phase_setting[0]).unwrap();
             tx_a.send(phase_setting[1]).unwrap();
             tx_b.send(phase_setting[2]).unwrap();
@@ -129,7 +125,7 @@ fn main() -> Result<(), ()> {
                 machine.run();
             });
 
-            tx_main.send(0).unwrap();
+            tx_main.send(input_val).unwrap();
 
             let mut final_value = -1;
 
@@ -137,36 +133,18 @@ fn main() -> Result<(), ()> {
                 let _ = tx_main.send(received_value);
                 final_value = received_value;
             }
-        
-            thread_a.join();
-            thread_b.join();
-            thread_c.join();
-            thread_d.join();
-            thread_e.join();
-            
+
+            thread_a.join().unwrap();
+            thread_b.join().unwrap();
+            thread_c.join().unwrap();
+            thread_d.join().unwrap();
+            thread_e.join().unwrap();
+
             final_value
         })
         .collect();
 
     println!("Largest: {:?}", results.iter().max().unwrap());
-
-    /*
-    let (tx, rx) = channel();
-
-    let sender = thread::spawn(move || {
-        tx.send("Hello, thread".to_owned())
-            .expect("Unable to send on channel");
-    });
-
-    let receiver = thread::spawn(move || {
-        let value = rx.recv().expect("Unable to receive from channel");
-        println!("{}", value);
-    });
-
-    sender.join().expect("The sender thread has panicked");
-    receiver.join().expect("The receiver thread has panicked");
-
-    */
 
     Ok(())
 }
