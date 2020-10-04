@@ -1,3 +1,5 @@
+use std::sync::mpsc::{Receiver, Sender};
+
 #[derive(Debug)]
 enum Op {
     Add,
@@ -25,8 +27,8 @@ struct Command {
 pub struct Machine<'a> {
     pub memory: &'a mut Vec<i32>,
     pub ip: usize,
-    pub input: Vec<i32>,
-    pub output: i32,
+    pub input: Receiver<i32>,
+    pub output: Sender<i32>,
 }
 
 impl<'a> Machine<'a> {
@@ -47,13 +49,13 @@ impl<'a> Machine<'a> {
                 Op::JmpFalse => self.op_jmpfalse(args),
                 Op::Less => self.op_less(args),
                 Op::Equal => self.op_equal(args),
-                Op::Halt => break,
+                Op::Halt => {
+                    println!("Halt");
+                    break;
+                }
             }
         }
-    }
-
-    pub fn get_output(&self) -> i32 {
-        self.output
+        println!("I stopped");
     }
 
     fn op_add(&mut self, args: Vec<ArgMode>) {
@@ -106,22 +108,25 @@ impl<'a> Machine<'a> {
         match args[0] {
             ArgMode::Position => {
                 let index = self.memory[self.ip + 1] as usize;
-                self.memory[index as usize] = self.input.pop().unwrap();
+                self.memory[index as usize] = self.input.recv().unwrap();
             }
             ArgMode::Immediate => {
                 let index = self.ip + 1;
-                self.memory[index as usize] = self.input.pop().unwrap();
+                self.memory[index as usize] = self.input.recv().unwrap();
             }
         }
         self.ip += args.len() + 1;
     }
 
     fn op_load(&mut self, args: Vec<ArgMode>) {
-        self.output = match args[0] {
+        let value = match args[0] {
             ArgMode::Position => self.memory[self.memory[self.ip + 1] as usize],
             ArgMode::Immediate => self.memory[self.ip + 1],
         };
         self.ip += args.len() + 1;
+        self.output
+            .send(value)
+            .expect("I could not send a message on my output");
     }
 
     fn op_jmptrue(&mut self, args: Vec<ArgMode>) {

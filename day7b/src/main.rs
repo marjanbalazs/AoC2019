@@ -56,92 +56,99 @@ fn main() -> Result<(), ()> {
 
     let results: Vec<i32> = phase_permutations
         .into_iter()
-        .map(|phase_settings| {
-            let mut x = 0;
-            for elem in phase_settings {
-                let (tx_main, rx_a) = channel();
-                let (tx_a, rx_b) = channel();
-                let (tx_b, rx_c) = channel();
-                let (tx_c, rx_d) = channel();
-                let (tx_d, rx_e) = channel();
-                let (tx_e, rx_main) = channel();
+        .map(|phase_setting| {
+            let mut result = -1;
+            let (tx_main, rx_a) = channel();
+            let (tx_a, rx_b) = channel();
+            let (tx_b, rx_c) = channel();
+            let (tx_c, rx_d) = channel();
+            let (tx_d, rx_e) = channel();
+            let (tx_e, rx_main) = channel();
 
-                tx_main.send(0).unwrap();
-                
+            println!("{:?}", phase_setting);
 
-                let mut mem_a = mem_original.to_vec();
-                let thread_a = thread::spawn(move || {
-                    let mut machine = intcode::Machine {
-                        memory: &mut mem_a,
-                        ip: 0,
-                        input: Vec::from([x, elem]),
-                        output: 0,
-                    };
-                    machine.run();
-                    x = machine.output;
-                });
+            //tx_main.send(0).unwrap();
+            tx_main.send(phase_setting[0]).unwrap();
+            tx_a.send(phase_setting[1]).unwrap();
+            tx_b.send(phase_setting[2]).unwrap();
+            tx_c.send(phase_setting[3]).unwrap();
+            tx_d.send(phase_setting[4]).unwrap();
 
-                let mut mem_b = mem_original.to_vec();
-                let thread_b = thread::spawn(move || {
-                    let mut machine = intcode::Machine {
-                        memory: &mut mem_b,
-                        ip: 0,
-                        input: Vec::from([x, elem]),
-                        output: 0,
-                    };
-                    machine.run();
-                    x = machine.output;
-                });
+            let mut mem_a = mem_original.to_vec();
+            let thread_a = thread::spawn(move || {
+                let mut machine = intcode::Machine {
+                    memory: &mut mem_a,
+                    ip: 0,
+                    input: rx_a,
+                    output: tx_a,
+                };
+                machine.run();
+            });
 
-                let mut mem_c = mem_original.to_vec();
-                let thread_c = thread::spawn(move || {
-                    let mut machine = intcode::Machine {
-                        memory: &mut mem_c,
-                        ip: 0,
-                        input: Vec::from([x, elem]),
-                        output: 0,
-                    };
-                    machine.run();
-                    x = machine.output;
-                });
+            let mut mem_b = mem_original.to_vec();
+            let thread_b = thread::spawn(move || {
+                let mut machine = intcode::Machine {
+                    memory: &mut mem_b,
+                    ip: 0,
+                    input: rx_b,
+                    output: tx_b,
+                };
+                machine.run();
+            });
 
-                let mut mem_d = mem_original.to_vec();
-                let thread_d = thread::spawn(move || {
-                    let mut machine = intcode::Machine {
-                        memory: &mut mem_d,
-                        ip: 0,
-                        input: Vec::from([x, elem]),
-                        output: 0,
-                    };
-                    machine.run();
-                    x = machine.output;
-                });
+            let mut mem_c = mem_original.to_vec();
+            let thread_c = thread::spawn(move || {
+                let mut machine = intcode::Machine {
+                    memory: &mut mem_c,
+                    ip: 0,
+                    input: rx_c,
+                    output: tx_c,
+                };
+                machine.run();
+            });
 
-                let mut mem_e = mem_original.to_vec();
-                let thread_e = thread::spawn(move || {
-                    let mut machine = intcode::Machine {
-                        memory: &mut mem_e,
-                        ip: 0,
-                        input: Vec::from([x, elem]),
-                        output: 0,
-                    };
-                    machine.run();
-                    x = machine.output;
-                });
-                let x = rx_main.recv().unwrap();
-                println!("Received in main: {:?}", x);
+            let mut mem_d = mem_original.to_vec();
+            let thread_d = thread::spawn(move || {
+                let mut machine = intcode::Machine {
+                    memory: &mut mem_d,
+                    ip: 0,
+                    input: rx_d,
+                    output: tx_d,
+                };
+                machine.run();
+            });
 
-                thread_a.join().unwrap();
-                thread_b.join().unwrap();
-                thread_c.join().unwrap();
-                thread_d.join().unwrap();
-                thread_e.join().unwrap();
+            let mut mem_e = mem_original.to_vec();
+            let thread_e = thread::spawn(move || {
+                let mut machine = intcode::Machine {
+                    memory: &mut mem_e,
+                    ip: 0,
+                    input: rx_e,
+                    output: tx_e,
+                };
+                machine.run();
+            });
+
+            tx_main.send(0).unwrap();
+
+            let mut final_value = -1;
+
+            while let Ok(received_value) = rx_main.recv() {
+                let _ = tx_main.send(received_value);
+                final_value = received_value;
             }
-            x
+        
+            thread_a.join();
+            thread_b.join();
+            thread_c.join();
+            thread_d.join();
+            thread_e.join();
+            
+            final_value
         })
         .collect();
 
-    println!("{:?}", results.iter().max().unwrap());
+    println!("Largest: {:?}", results.iter().max().unwrap());
 
     /*
     let (tx, rx) = channel();
