@@ -11,6 +11,7 @@ enum Op {
     Less,
     Equal,
     Halt,
+    SetBase
 }
 
 #[derive(Debug)]
@@ -25,10 +26,10 @@ struct Command {
 }
 
 pub struct Machine<'a> {
-    pub memory: &'a mut Vec<i32>,
+    pub memory: &'a mut Vec<i64>,
     pub ip: usize,
-    pub input: Receiver<i32>,
-    pub output: Sender<i32>,
+    pub input: Receiver<i64>,
+    pub output: Sender<i64>,
 }
 
 impl<'a> Machine<'a> {
@@ -44,6 +45,7 @@ impl<'a> Machine<'a> {
                 Op::JmpFalse => self.op_jmpfalse(op.args.unwrap()),
                 Op::Less => self.op_less(op.args.unwrap()),
                 Op::Equal => self.op_equal(op.args.unwrap()),
+                Op::SetBase => unimplemented!(),
                 Op::Halt => {
                     break;
                 }
@@ -51,7 +53,7 @@ impl<'a> Machine<'a> {
         }
     }
 
-    fn get_val(&self, pos: usize, mode: &ArgMode) -> i32 {
+    fn get_val(&self, pos: usize, mode: &ArgMode) -> i64 {
         let val = match *mode {
             ArgMode::Position => self.memory[self.memory[pos] as usize],
             ArgMode::Immediate => self.memory[pos],
@@ -59,7 +61,7 @@ impl<'a> Machine<'a> {
         val
     }
 
-    fn set_val(&mut self, val: i32, pos: usize, mode: &ArgMode) {
+    fn set_val(&mut self, val: i64, pos: usize, mode: &ArgMode) {
         match mode {
             ArgMode::Position => {
                 let idx = self.memory[pos];
@@ -136,7 +138,7 @@ impl<'a> Machine<'a> {
     }
 }
 
-fn decode_argmodes(opcode: i32, len: usize) -> Vec<ArgMode> {
+fn decode_argmodes(opcode: i64, len: usize) -> Vec<ArgMode> {
     let mut argmodes: Vec<ArgMode> = Vec::new();
     let mut arg = opcode / 100;
     for _ in 0..len {
@@ -150,7 +152,7 @@ fn decode_argmodes(opcode: i32, len: usize) -> Vec<ArgMode> {
     argmodes
 }
 
-fn decode(opcode: i32) -> Command {
+fn decode(opcode: i64) -> Command {
     let op: Command = match opcode % 100 {
         1 => {
             let arg_modes = decode_argmodes(opcode, 3);
@@ -205,6 +207,13 @@ fn decode(opcode: i32) -> Command {
             let arg_modes = decode_argmodes(opcode, 3);
             Command {
                 op: Op::Equal,
+                args: Some(arg_modes),
+            }
+        }
+        9 => {
+            let arg_modes = decode_argmodes(opcode, 1);
+            Command {
+                op: op::SetBase,
                 args: Some(arg_modes),
             }
         }
