@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, Sender};
 
 #[derive(Debug)]
@@ -11,13 +12,14 @@ enum Op {
     Less,
     Equal,
     Halt,
-    SetBase
+    SetBase,
 }
 
 #[derive(Debug)]
 enum ArgMode {
     Position,
     Immediate,
+    Relative,
 }
 #[derive(Debug)]
 struct Command {
@@ -25,17 +27,19 @@ struct Command {
     args: Option<Vec<ArgMode>>,
 }
 
-pub struct Machine<'a> {
-    pub memory: &'a mut Vec<i64>,
-    pub ip: usize,
+pub struct Machine {
     pub input: Receiver<i64>,
     pub output: Sender<i64>,
+    memory: HashMap<usize, i64>,
+    base: i64,
+    ip: usize,
 }
 
-impl<'a> Machine<'a> {
+impl Machine {
     pub fn run(&mut self) {
+        self.base = 0;
         while self.ip < self.memory.len() {
-            let op = decode(self.memory[self.ip]);
+            let op = decode(*self.memory.get(&self.ip).unwrap_or(&0));
             match op.op {
                 Op::Add => self.op_add(op.args.unwrap()),
                 Op::Multiply => self.op_multiply(op.args.unwrap()),
@@ -45,7 +49,7 @@ impl<'a> Machine<'a> {
                 Op::JmpFalse => self.op_jmpfalse(op.args.unwrap()),
                 Op::Less => self.op_less(op.args.unwrap()),
                 Op::Equal => self.op_equal(op.args.unwrap()),
-                Op::SetBase => unimplemented!(),
+                Op::SetBase => self.op_setbase(op.args.unwrap()),
                 Op::Halt => {
                     break;
                 }
@@ -53,21 +57,54 @@ impl<'a> Machine<'a> {
         }
     }
 
+    pub fn new(
+        mem: &mut HashMap<usize, i64>,
+        input: Receiver<i64>,
+        output: Sender<i64>,
+    ) -> Machine {
+        Machine {
+            base: 0,
+            ip: 0,
+            input,
+            output,
+            memory: mem.clone(),
+        }
+    }
+
     fn get_val(&self, pos: usize, mode: &ArgMode) -> i64 {
         let val = match *mode {
-            ArgMode::Position => self.memory[self.memory[pos] as usize],
-            ArgMode::Immediate => self.memory[pos],
+            ArgMode::Position => {
+                let idx = *self.memory.get(&pos).unwrap_or(&0);
+                *self.memory.get(&(idx as usize)).unwrap_or(&0)
+            }
+            ArgMode::Immediate => *self.memory.get(&pos).unwrap_or(&0),
+            ArgMode::Relative => {
+                let idx = *self
+                    .memory
+                    .get(&pos)
+                    .unwrap_or(&0);
+                *self.memory.get(&((idx as i64 + self.base) as usize)).unwrap_or(&0)
+            }
         };
         val
     }
 
     fn set_val(&mut self, val: i64, pos: usize, mode: &ArgMode) {
-        match mode {
+        match *mode {
             ArgMode::Position => {
-                let idx = self.memory[pos];
-                self.memory[idx as usize] = val;
+                let idx = *self.memory.get(&pos).unwrap_or(&0);
+                self.memory.insert(idx as usize, val);
             }
-            ArgMode::Immediate => self.memory[pos] = val,
+            ArgMode::Immediate => {
+                self.memory.insert(pos, val);
+            }
+            ArgMode::Relative => {
+                let idx = *self
+                    .memory
+                    .get(&pos)
+                    .unwrap_or(&0);
+                self.memory.insert((idx + self.base) as usize, val);
+            }
         }
     }
 
@@ -136,6 +173,12 @@ impl<'a> Machine<'a> {
         self.set_val(store, self.ip + 3, &args[2]);
         self.ip += args.len() + 1;
     }
+
+    fn op_setbase(&mut self, args: Vec<ArgMode>) {
+        let val = self.get_val(self.ip + 1, &args[0]);
+        self.base += val;
+        self.ip += args.len() + 1;
+    }
 }
 
 fn decode_argmodes(opcode: i64, len: usize) -> Vec<ArgMode> {
@@ -143,6 +186,7 @@ fn decode_argmodes(opcode: i64, len: usize) -> Vec<ArgMode> {
     let mut arg = opcode / 100;
     for _ in 0..len {
         match arg % 10 {
+            2 => argmodes.push(ArgMode::Relative),
             1 => argmodes.push(ArgMode::Immediate),
             0 => argmodes.push(ArgMode::Position),
             _ => panic!("Unexpected stuff happened at argument mode deduction"),
@@ -213,7 +257,7 @@ fn decode(opcode: i64) -> Command {
         9 => {
             let arg_modes = decode_argmodes(opcode, 1);
             Command {
-                op: op::SetBase,
+                op: Op::SetBase,
                 args: Some(arg_modes),
             }
         }
