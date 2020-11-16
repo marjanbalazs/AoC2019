@@ -3,13 +3,15 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::ops::Add;
+use std::ops::Sub;
 
 #[derive(Debug)]
 enum Content {
     Asteroid(i32),
     Void,
 }
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 struct Point {
     x: i32,
     y: i32,
@@ -21,19 +23,60 @@ struct Field {
 }
 
 impl Point {
-    pub fn vector_product(lhs: Point, rhs: Point) -> i32 {
-        lhs.x*rhs.y-rhs.y*lhs.x
+    pub fn vector_product(lhs: &Point, rhs: &Point) -> i32 {
+        lhs.x * rhs.y - lhs.y * rhs.x
+    }
+    pub fn scalar_product(lhs: &Point, rhs: &Point) -> i32 {
+        lhs.x * rhs.x + lhs.y * rhs.y
     }
     fn rotate_plus_90(&self) -> Point {
         Point {
             x: -self.y,
-            y: self.x
+            y: self.x,
         }
     }
     fn rotate_minus_90(&self) -> Point {
         Point {
             x: self.y,
-            y: -self.x
+            y: -self.x,
+        }
+    }
+    pub fn is_between(a: &Point, b: &Point, c: &Point) -> bool {
+        let vec_prod = Point::vector_product(a, b);
+        if vec_prod != 0 {
+            return false;
+        }
+        let scalar_prod = Point::scalar_product(&(*b - *a), &(*c - *a));
+        if scalar_prod < 0 {
+            return false;
+        }
+        let squaredlengthba = (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
+        if scalar_prod > squaredlengthba {
+            return false;
+        }
+        true
+    }
+    pub fn is_between_opt(a: &Point, b: &Point, c: &Point) -> bool {
+        (a.x - c.x) * (b.y - c.y) == (b.x - c.x) * (a.y - c.y)
+    }
+}
+
+impl Sub for Point {
+    type Output = Point;
+    fn sub(self, other: Point) -> Point {
+        Point {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
+
+impl Add for Point {
+    type Output = Point;
+    fn add(self, other: Self) -> Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
         }
     }
 }
@@ -54,7 +97,8 @@ fn main() -> Result<(), io::Error> {
         }
     }
     let asteroid_field = file
-        .chars().enumerate()
+        .chars()
+        .enumerate()
         .map(|(idx, elem)| {
             return match elem {
                 '.' => Field {
@@ -76,8 +120,5 @@ fn main() -> Result<(), io::Error> {
         })
         .collect::<Vec<Field>>();
 
-    println!("{:?}", Point { x: 1, y: 2}.rotate_plus_90());
-    println!("{:?}", Point { x: 1, y: 2}.rotate_minus_90());
-    println!("{}", Point::vector_product(Point { x: 1, y: 2}, Point { x: 1, y: 2}.rotate_minus_90()));
     Ok(())
 }
